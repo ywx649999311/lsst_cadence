@@ -34,7 +34,7 @@ class lsstlc(kali.lc.lc):
             min_gap(float): Min intra-night gap (in days) for LSST observations of the particular
                 point on the sky
         """
-        self._ra, self._dec = ra, dec
+       	self._ra, self._dec = ra, dec
         self.min_gap = np.around(min_gap*3600) # days to seconds
         self.obsTimes = obsTimes
         self.mockLC = mockLC
@@ -58,7 +58,7 @@ class lsstlc(kali.lc.lc):
         self.yunit = kwargs.get('yunit', r'$F$')
         m_t_sec = np.around(self.mockLC.t*86400).astype('int') # convert t in mockLC from days to seconds
         opSim_index = np.floor(self.obsTimes/self.min_gap)
-        mark = [floor(x/self.min_gap) in opSim_index for x in m_t_sec]
+        mark = [math.floor(x/self.min_gap) in opSim_index for x in m_t_sec]
         
         self.mock_t = self.mockLC.t[np.where(mark)] # mock_t is time from mock LC
         self.x = self.mockLC.x[np.where(mark)]
@@ -105,8 +105,7 @@ class lsstlc(kali.lc.lc):
             #     model = gatspy.periodic.LombScargle()
 
 	        ls = stats.LombScargle(self.t, self.y, self.yerr, nterms=nterms)
-	        f, psd = ls.autopower(method='fast', normalization='psd', maximum_frequency=1/self.mindt, 
-	        	minimum_frequency=1/self.T)
+	        f, psd = ls.autopower(method='fast', normalization='psd', maximum_frequency=1/self.mindt)
 	        self._periodogramfreqs_sb = np.require(np.array(f), requirements=['F', 'A', 'W', 'O', 'E'])
 	        self._periodogram_sb = np.require(np.array(psd), requirements=['F', 'A', 'W', 'O', 'E'])
 	        self._periodogramerr_sb = np.require(np.array(self._periodogram_sb.shape[0]*[0.0]),
@@ -118,23 +117,28 @@ class lsstlc(kali.lc.lc):
 
 class extLC(kali.lc.lc):
 
+    pSim = 0
+    qSim = 0
+
     def __init__(self, file_path):
-        
+
         path = file_path
         base = os.path.basename(file_path)
         name = os.path.splitext(base)[0]
         band = ''
 
         kali.lc.lc.__init__(self, path=path, name=name, band=band)
+        self.pSim = extLC.pSim
+        self.qSim = extLC.qSim
 
     def read(self, path, name=None, band=None, **kwargs):
 
         lc_data = np.load(path)
-        
         if 'mock_t' in lc_data.files:
             self.mock_t = lc_data['mock_t']
 
         self.t = lc_data['t']
+        self.x = lc_data['x']
         self.y = lc_data['y']
         self.yerr = lc_data['yerr']
         self.mask = lc_data['mask']
@@ -142,14 +146,15 @@ class extLC(kali.lc.lc):
         meta = lc_data['meta']
         self.startT = self.t[0]
         self._numCadences = self.t.shape[0]
-        self._pSim = meta[0]
-        self._qSim = meta[1]
         self._fracNoiseToSignal = meta[2]
         self._fracIntrinsicVar = meta[3]
         self.name = name
         self.band = band
         self.xunit = kwargs.get('xunit', r'$t$')
         self.yunit = kwargs.get('yunit', r'$F$')
+        
+        extLC.pSim = int(meta[0])
+        extLC.qSim = int(meta[1])
 
     def write(self, name=None, band=None, pwd=None, **kwargs):
         """Not implemented, but required to complet the class"""
