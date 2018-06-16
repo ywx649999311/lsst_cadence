@@ -14,7 +14,7 @@ def lc2file(file_path, lc):
     meta = [lc.pSim, lc.qSim, lc.fracNoiseToSignal, lc.fracIntrinsicVar]
     if 'mock_t' in lc.__dict__:
         np.savez(file_path, t=lc.t, x=lc.x, y=lc.y, yerr=lc.yerr, mask=lc.mask, meta=meta, 
-            mock_t=self.mock_t)
+            mock_t= lc.mock_t)
     else: 
         np.savez(file_path, t=lc.t, x=lc.x, y=lc.y, yerr=lc.yerr, mask=lc.mask, meta=meta)
 
@@ -31,11 +31,11 @@ class lsstlc(kali.lc.lc):
             dec(float): Declination
             obsTimes(ndarray): A numpy array of the observing dates in seconds
             mockLC: Mock lightcuve simulated using Kali
-            min_gap(float): Min intra-night gap (in days) for LSST observations of the particular
+            min_gap(float): Min intra-night gap (in hours) for LSST observations of the particular
                 point on the sky
         """
        	self._ra, self._dec = ra, dec
-        self.min_gap = np.around(min_gap*3600) # days to seconds
+        self.min_gap = min_gap*3600 # hours to seconds
         self.obsTimes = obsTimes
         self.mockLC = mockLC
         name = 'lsst_{}_{}_CARMA_{}_{}'.format(ra, dec, mockLC.pSim, mockLC.qSim)
@@ -56,9 +56,9 @@ class lsstlc(kali.lc.lc):
         self.band = band
         self.xunit = kwargs.get('xunit', r'$t$')
         self.yunit = kwargs.get('yunit', r'$F$')
-        m_t_sec = np.around(self.mockLC.t*86400).astype('int') # convert t in mockLC from days to seconds
-        opSim_index = np.floor(self.obsTimes/self.min_gap)
-        mark = [math.floor(x/self.min_gap) in opSim_index for x in m_t_sec]
+        opSim_index = np.around(self.obsTimes/self.min_gap).astype('int')
+        mark = np.full((self.mockLC.t.shape[0],), False, dtype='bool')
+        mark[opSim_index] = True
         
         self.mock_t = self.mockLC.t[np.where(mark)] # mock_t is time from mock LC
         self.x = self.mockLC.x[np.where(mark)]

@@ -1,4 +1,5 @@
 .ipynb_checkpoints/*
-LightCurve/*.npz
+LightCurve/
 *.pyc
-DDF
+Rachael/
+Cadence_compare/
