@@ -35,7 +35,7 @@ class lsstlc(kali.lc.lc):
                 point on the sky
         """
        	self._ra, self._dec = ra, dec
-        self.min_gap = min_gap*3600 # hours to seconds
+        self.min_gap = np.floor(min_gap*3600-1) # hours to seconds (floor to avoid dim error)
         self.obsTimes = obsTimes
         self.mockLC = mockLC
         name = 'lsst_{}_{}_CARMA_{}_{}'.format(ra, dec, mockLC.pSim, mockLC.qSim)
@@ -117,8 +117,11 @@ class lsstlc(kali.lc.lc):
 
 class extLC(kali.lc.lc):
 
+    # Class variable are used to update LC model parameters
     pSim = 0
     qSim = 0
+    fracIntrinsicVar = 0.15
+    fracNoiseToSignal = 0.001
 
     def __init__(self, file_path):
 
@@ -128,8 +131,10 @@ class extLC(kali.lc.lc):
         band = ''
 
         kali.lc.lc.__init__(self, path=path, name=name, band=band)
-        self.pSim = extLC.pSim
-        self.qSim = extLC.qSim
+        self._pSim = extLC.pSim
+        self._qSim = extLC.qSim
+        self._fracIntrinsicVar = extLC.fracIntrinsicVar
+        self._fracNoiseToSignal = extLC.fracNoiseToSignal
 
     def read(self, path, name=None, band=None, **kwargs):
 
@@ -146,8 +151,6 @@ class extLC(kali.lc.lc):
         meta = lc_data['meta']
         self.startT = self.t[0]
         self._numCadences = self.t.shape[0]
-        self._fracNoiseToSignal = meta[2]
-        self._fracIntrinsicVar = meta[3]
         self.name = name
         self.band = band
         self.xunit = kwargs.get('xunit', r'$t$')
@@ -155,6 +158,8 @@ class extLC(kali.lc.lc):
         
         extLC.pSim = int(meta[0])
         extLC.qSim = int(meta[1])
+        extLC.fracNoiseToSignal = float(meta[2])
+        extLC.fracIntrinsicVar = float(meta[3])
 
     def write(self, name=None, band=None, pwd=None, **kwargs):
         """Not implemented, but required to complet the class"""
