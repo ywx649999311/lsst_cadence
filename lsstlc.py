@@ -4,26 +4,39 @@ import math
 from astropy import stats
 import os
 
-def lc2file(file_path, lc):
+def lc2file(file_dir, lc, full = False, timescales = None):
     '''Save light curve to a .npz file
     Args:
         file_path(str): path + file name
         lc: Kali light curve object
+        full(bool): Full mock LC or not
+        timescales(list): CARMA coefficients in timescale format
     '''
-    # meta-info array, [p, q, fracNoiseToSignal, fracIntrinsicVar]
+    
+    # Check out if full LC is saved, if so require more input!
+    if full:
+        if timescales is None:
+            raise Exception('Full LC need CARMA timescales!')
+        elif not isinstance(timescales, list):
+            raise Exception('Timescales must contained in a list!')
+
+        lc_id = 'c{}{}'.format(lc.pSim, lc.qSim)
+        for i in range(len(timescales)):
+            lc_id += '_{}'.format(timescales[i])
+
     meta = [lc.pSim, lc.qSim, lc.fracNoiseToSignal, lc.fracIntrinsicVar]
     if 'mock_t' in lc.__dict__:
-        np.savez(file_path, t=lc.t, x=lc.x, y=lc.y, yerr=lc.yerr, mask=lc.mask, meta=meta, 
+        np.savez(os.path.join(file_dir, lc.name), t=lc.t, x=lc.x, y=lc.y, yerr=lc.yerr, mask=lc.mask, meta=meta, 
             mock_t= lc.mock_t)
     else: 
-        np.savez(file_path, t=lc.t, x=lc.x, y=lc.y, yerr=lc.yerr, mask=lc.mask, meta=meta)
+        np.savez(os.path.join(file_dir, lc_id), t=lc.t, x=lc.x, y=lc.y, yerr=lc.yerr, mask=lc.mask, meta=meta)
 
 class lsstlc(kali.lc.lc):
     """A subclass of Kali's lc class. 
     This class down sample the mock lc with given dates. More flexible plotting is also available.
     """
 
-    def __init__(self, ra, dec, obsTimes, mockLC, min_gap, **kwargs):
+    def __init__(self, ra, dec, obsTimes, mockLC, min_sep, band = 'a', fix_dt = False, **kwargs):
         """Initiation method
 
         Args:
@@ -31,15 +44,21 @@ class lsstlc(kali.lc.lc):
             dec(float): Declination
             obsTimes(ndarray): A numpy array of the observing dates in seconds
             mockLC: Mock lightcuve simulated using Kali
-            min_gap(float): Min intra-night gap (in hours) for LSST observations of the particular
+            min_sep(float): Min intra-night seperation (in hours) for LSST observations of the particular
                 point on the sky
+            band(str): Observing band, defaults to 'a' stands for all bands.
+            fixed_dt:(bool): Whether the full LC is sampled every 30 sec. 
         """
        	self._ra, self._dec = ra, dec
-        self.min_gap = np.floor(min_gap*3600-1) # hours to seconds (floor to avoid dim error)
+        
+        if fix_dt:
+            self.min_sep = 30 
+        else:
+            self.min_sep = np.floor(min_sep*3600-1) # hours to seconds (floor to avoid dim error)
+        
         self.obsTimes = obsTimes
         self.mockLC = mockLC
-        name = 'lsst_{}_{}_CARMA_{}_{}'.format(ra, dec, mockLC.pSim, mockLC.qSim)
-        band = ''
+        name = '{}_{}_{}_c{}{}'.format(ra, dec, band, mockLC.pSim, mockLC.qSim)
         kali.lc.lc.__init__(self, name=name, band=band, pSim = self.mockLC.pSim, 
             qSim = self.mockLC.qSim)
         
@@ -56,7 +75,8 @@ class lsstlc(kali.lc.lc):
         self.band = band
         self.xunit = kwargs.get('xunit', r'$t$')
         self.yunit = kwargs.get('yunit', r'$F$')
-        opSim_index = np.around(self.obsTimes/self.min_gap).astype('int')
+
+        opSim_index = np.around(self.obsTimes/self.min_sep).astype('int')
         mark = np.full((self.mockLC.t.shape[0],), False, dtype='bool')
         mark[opSim_index] = True
         
