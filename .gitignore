@@ -1,7 +1,7 @@
-.ipynb_checkpoints/*
+**/.ipynb_checkpoints/*
 LightCurve/
 *.pyc
 Rachael/
 Cadence_compare/
 playground/
-minion_2016/
+minion_1016/
