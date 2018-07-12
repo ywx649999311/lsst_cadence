@@ -53,24 +53,30 @@ def run_maf(dbFile, ra, dec):
     return bg
 
 if __name__ == "__main__":
+
+    cadence_run = 'minion_1016'
     
     # read coordinate from csv
     loc_df = pd.read_csv('/home/mount/lsst_cadence/auto_script/loc.csv')
     ra = list(loc_df['ra'])
     dec = list(loc_df['dec'])
 
-    print(ra, dec)
     # run maf
     result = run_maf(Baseline, ra, dec)
 
-    for i in loc_df.index:
-        odf = loc_df.copy()
-        odf['sep'] = result.bundleDict['sep'].metricValues.data
-        odf['db'] = 'minion_1016'
-        odf.to_csv('./maf_meta.csv')
+    # saving data
+    cad = result.bundleDict['cadence'].metricValues.data
+    sep = result.bundleDict['sep'].metricValues.data
+    df_ls = []
+    for i in range(len(cad)):
+        df = pd.DataFrame(cad[i])
+        df['loc'] = int(i)
+        df['min_sep'] = sep[i]
+        df_ls.append(df)
 
-        ofile = './maf_cadence'
-        np.save(ofile, result.bundleDict['cadence'].metricValues.data)
+    odf = pd.concat(df_ls)
+    ofile = './{}_cadence.csv'.format(cadence_run)
+    odf.to_csv(ofile)
 
 
 
