@@ -36,7 +36,7 @@ class lsstlc(kali.lc.lc):
     This class down sample the mock lc with given dates. More flexible plotting is also available.
     """
 
-    def __init__(self, ra, dec, obsTimes, mockLC, min_sep, band = 'a', fix_dt = False, **kwargs):
+    def __init__(self, ra, dec, obsTimes, mockLC, min_sep = None, band = 'a', fix_dt = False, **kwargs):
         """Initiation method
 
         Args:
@@ -52,8 +52,10 @@ class lsstlc(kali.lc.lc):
        	self._ra, self._dec = ra, dec
         
         if fix_dt:
-            self.min_sep = 30 
-        else:
+            self.min_sep = 30.0 
+        elif min_sep is None:
+            raise Exception('Minimum seperation is either fixed at 30 sec or must be provided (in hours)!')
+        else:    
             self.min_sep = np.floor(min_sep*3600-1) # hours to seconds (floor to avoid dim error)
         
         self.obsTimes = obsTimes

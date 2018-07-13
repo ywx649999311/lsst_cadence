@@ -57,7 +57,8 @@ if __name__ == "__main__":
     cadence_run = 'minion_1016'
     
     # read coordinate from csv
-    loc_df = pd.read_csv('/home/mount/lsst_cadence/auto_script/loc.csv')
+    loc_path = '/home/mount/lsst_cadence/auto_script/loc.csv'
+    loc_df = pd.read_csv(loc_path)
     ra = list(loc_df['ra'])
     dec = list(loc_df['dec'])
 
@@ -71,12 +72,15 @@ if __name__ == "__main__":
     for i in range(len(cad)):
         df = pd.DataFrame(cad[i])
         df['loc'] = int(i)
-        df['min_sep'] = sep[i]
+        #df['min_sep'] = sep[i]
         df_ls.append(df)
 
     odf = pd.concat(df_ls)
     ofile = './{}_cadence.csv'.format(cadence_run)
-    odf.to_csv(ofile)
+    odf.to_csv(ofile, index=False)
+
+    # save min_sep info to input loc csv (reduce file size)
+    loc_df.to_csv(loc_path, index=False)
 
 
 
