@@ -1,3 +1,4 @@
+"""Module including function lc2file and two sub-classes class lsstlc and class extLC."""
 import numpy as np
 import kali
 from astropy import stats
@@ -5,13 +6,14 @@ import os
 
 
 def lc2file(file_dir, lc, full=False, timescales=None):
-    '''Save light curve to a .npz file
+    """Save light curve to a .npz file.
+    
     Args:
         file_path(str): path + file name
         lc: Kali light curve object
         full(bool): Full mock LC or not
         timescales(list): CARMA coefficients in timescale format
-    '''
+    """
 
     # Check out if full LC is saved, if so require more input!
     if full:
@@ -33,11 +35,12 @@ def lc2file(file_dir, lc, full=False, timescales=None):
 
 class lsstlc(kali.lc.lc):
     """A subclass of Kali's lc class.
+
     This class down sample the mock lc with given dates. More flexible plotting is also available.
     """
 
     def __init__(self, ra, dec, obsTimes, mockLC, min_sep=None, band='a', fix_dt=False, **kwargs):
-        """Initiation method
+        """Initiation method.
 
         Args:
             ra(float): Right ascension
@@ -61,10 +64,10 @@ class lsstlc(kali.lc.lc):
         self.obsTimes = obsTimes
         self.mockLC = mockLC
         name = '{}_{}_{}_c{}{}'.format(ra, dec, band, mockLC.pSim, mockLC.qSim)
-        kali.lc.lc.__init__(self, name=name, band=band, pSim=self.mockLC.pSim, qSim=self.mock.qSim)
+        kali.lc.lc.__init__(self, name=name, band=band, pSim=self.mockLC.pSim, qSim=self.mockLC.qSim)
 
     def read(self, name=None, band=None, path=None, **kwargs):
-        """Method will be called first during object initiation
+        """Method will be called first during object initiation.
 
         Args:
             name(str, optional): Name of the light curve
@@ -91,11 +94,11 @@ class lsstlc(kali.lc.lc):
         self.t = self.mock_t - self.startT  # get t for new LC
 
     def write(self, name=None, band=None, pwd=None, **kwargs):
-        """Not implemented, but required to complet the class"""
+        """Not implemented, but required to complet the class."""
         pass
 
     def plot_x_y_err(self):
-        """"Return the entries for plotting
+        """"Return the entries for plotting.
 
         Returns:
             x(ndarray): An array storing the observation timestamps in days
@@ -113,6 +116,7 @@ class lsstlc(kali.lc.lc):
         return x, y, err_x, err_y, err_yerr
 
     def periodogram_sb(self, nterms=1):
+        """Single-band periodogram."""
 
         if (hasattr(self, '_periodogramfreqs_sb') and
                 hasattr(self, '_periodogram_sb') and
@@ -136,6 +140,7 @@ class lsstlc(kali.lc.lc):
 
 
 class extLC(kali.lc.lc):
+    """subclass of kali.lc to readin LC saved to file."""
 
     # Class variable are used to update LC model parameters
     pSim = 0
@@ -144,6 +149,7 @@ class extLC(kali.lc.lc):
     fracNoiseToSignal = 0.001
 
     def __init__(self, file_path):
+        """Init function."""
 
         path = file_path
         base = os.path.basename(file_path)
@@ -157,6 +163,7 @@ class extLC(kali.lc.lc):
         self._fracNoiseToSignal = extLC.fracNoiseToSignal
 
     def read(self, path, name=None, band=None, **kwargs):
+        """Overwrite the default read function."""
 
         lc_data = np.load(path)
         if 'mock_t' in lc_data.files:
@@ -182,5 +189,5 @@ class extLC(kali.lc.lc):
         extLC.fracIntrinsicVar = float(meta[3])
 
     def write(self, name=None, band=None, pwd=None, **kwargs):
-        """Not implemented, but required to complet the class"""
+        """Not implemented, but required to complet the class."""
         pass
