@@ -7,3 +7,4 @@ playground/
 minion_1016/
 auto_script/*.csv
 auto_script/maf_out/
+.DS_Store
