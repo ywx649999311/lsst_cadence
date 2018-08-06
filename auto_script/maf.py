@@ -66,10 +66,15 @@ if __name__ == "__main__":
     cad = result.bundleDict['cadence'].metricValues.data
     sep = result.bundleDict['sep'].metricValues.data
 
+    # determine location returned no result
+    cad_del = [i for i in range(len(cad)) if cad[i] is None]
+
     # save sep to input csv
     loc_df['sep'] = sep
+    loc_df.drop(cad_del)
     loc_df.to_csv(loc_path, index=False)
 
     # save cadence to npy file
+    cad = np.delete(cad, cad_del)
     np.save(sys.argv[2], cad)
 

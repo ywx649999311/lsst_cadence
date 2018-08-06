@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import kali.carma
 import kali
-from joblib import Parallel, delayed
+from joblib import Parallel, delayed, load, dump
 from concurrent.futures import ProcessPoolExecutor
 import os, sys, glob, gc, random
 sys.path.insert(0, '/home/mount/lsst_cadence')
@@ -18,9 +18,11 @@ cols = [0, 3, 6, 9, 12, 15, 16]
 nwalkers = 200
 nsteps = 1000
 
-bands = ['mjd_r', 'mjd_u']  # will loop over for each band in list
+bands = ['mjd_r']  # will loop over for each band in list
 shape = (nwalkers, nsteps)
-dtype = np.dtype([('LnPrior', np.float64, shape), ('LnLikelihood', np.float64, shape), ('LnPosterior', np.float64, shape), ('Chain[0]', np.float64, shape), ('Chain[1]', np.float64, shape), ('rootChain[0]', np.complex64, shape), ('rootChain[1]', np.complex64, shape), ('timescaleChain[0]', np.complex64, shape), ('timescaleChain[1]', np.complex64, shape)])
+dtype = np.dtype([('LnPosterior', np.float64, shape), ('Chain[0]', np.float64, shape), ('Chain[1]', np.float64, shape), ('rootChain[0]', np.complex128, shape), ('rootChain[1]', np.complex128, shape)])
+n_cpu = os.cpu_count()
+cwd = os.getcwd()
 
 
 def sdss_fit(lc, mjd_path):
@@ -50,7 +52,7 @@ def sdss_fit(lc, mjd_path):
         fit = list(task.bestTau)
         fit.append(band.split("_")[1])
         best_param.append(fit)
-        mcmc.append(np.rec.array([task.LnPrior, task.LnLikelihood, task.LnPosterior, task.Chain[0], task.Chain[1], task.rootChain[0], task.rootChain[1], task.timescaleChain[0], task.timescaleChain[1]], dtype=dtype))
+        mcmc.append(np.rec.array([task.LnPosterior, task.Chain[0], task.Chain[1], task.rootChain[0], task.rootChain[1]], dtype=dtype))
 
     df_p = pd.DataFrame(best_param, columns=['tau', 'sigma', 'filter'])
     df_p['file_name'] = os.path.split(mjd_path)[1]
@@ -91,16 +93,16 @@ if __name__ == '__main__':
     save_ls = []  # Hold results for every 4 objects in the first loop
 
     # random index to select from all lc
-    rd_idx = random.sample(range(len(cad_files)), k=100)
+    rd_idx = random.sample(range(len(cad_files)), k=8)
     s_100 = [cad_files[i] for i in rd_idx]
 
-    for i in df_param.index[::4]:
+    for i in df_param.index[::n_cpu]:
 
         # pack arguments into tuple
-        path_combos = [(lc_dir, i) for i in df_param.index[i:i+4]]
+        path_combos = [(lc_dir, i) for i in df_param.index[i:i+n_cpu]]
 
         # using process pool to parallize file IO
-        with ProcessPoolExecutor(os.cpu_count()) as executor:
+        with ProcessPoolExecutor(n_cpu) as executor:
             LCs = list(executor.map(read_lc, path_combos))
 
         for j in range(len(LCs)):
@@ -130,7 +132,7 @@ if __name__ == '__main__':
             # put data need to be saved to a list
             save_ls.append((rt_path, [rec_dff, mcmc_arr]))
 
-        with ProcessPoolExecutor(os.cpu_count()) as executor:
+        with ProcessPoolExecutor(n_cpu) as executor:
             executor.map(save, save_ls)
 
         # force garbage collection every 4 objects
