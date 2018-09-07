@@ -123,7 +123,7 @@ if __name__ == '__main__':
         # print(rank, j, df_param.loc[j, 'lc_name'])
         
         # create hdf5 file and chain group
-        f = h5py.File(os.path.join(final_dir, rt_id.format(df_param.loc[j, 'tau'], df_param.loc[j, 'sigma'], j, run_postfix)), 'w')
+        f = h5py.File(os.path.join(final_dir, rt_id.format(df_param.loc[j, 'tau_rest'], df_param.loc[j, 'sigma'], j, run_postfix)), 'w')
         grp = f.create_group('chain')
         # read lc 
         lc = extLC(os.path.join(obj_dir, df_param.loc[j, 'fname']+'.npz'))
@@ -138,7 +138,7 @@ if __name__ == '__main__':
         dff.insert(0, 'std_x', np.std(lc.x))
         dff.insert(0, 'std_y', np.std(lc.y))
         dff.insert(0, 'sigmaIn', df_param.loc[j, 'sigma'])
-        dff.insert(0, 'tauIn', df_param.loc[j, 'tau'])
+        dff.insert(0, 'tauIn', df_param.loc[j, 'tau_rest'])
         rec_dff = dff.to_records(index=False)
 
         # now redefine dtype for hdf5
