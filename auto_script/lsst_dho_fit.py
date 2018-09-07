@@ -26,7 +26,7 @@ final_dir = sys.argv[4]  # The directory to save all output, one file per object
 maf = np.load(lsst_maf)
 run_postfix = 'e1260'
 df_param = pd.read_csv(input_param)  # load shortened object list
-rt_id = 'c10_fit_{:.2f}_{:.2f}_{:d}_{}.hdf5'  # specify the saved record file standard
+rt_id = 'c21_fit_{:.2f}_{:.2f}_{:d}_{}.hdf5'  # specify the saved record file standard
 
 if rank == 0 and not os.path.exists(final_dir):
     os.mkdir(final_dir)
@@ -34,11 +34,10 @@ if rank == 0 and not os.path.exists(final_dir):
 
 if rank == 0:
     # random index to select from all simulated objects
-    rd_obj = random.sample(range(len(df_param)), k=len(df_param))
-    # rd_obj.sort()
+    rd_obj = random.sample(range(len(df_param)), k=1)
     
     # random index to select from all cadence
-    rd_cad = random.sample(range(len(maf['cad'])), k=100)
+    rd_cad = random.sample(range(len(maf['cad'])), k=300)
 else:
     rd_obj = None
     rd_cad = None
@@ -57,7 +56,7 @@ nsteps = 1000
 
 bands = ['r']  # will loop over for each band in list
 shape = (nwalkers, nsteps)
-dtype = np.dtype([('LnPosterior', np.float64, shape), ('Chain[0]', np.float64, shape), ('Chain[1]', np.float64, shape), ('rootChain[0]', np.complex128, shape), ('rootChain[1]', np.complex128, shape)])
+dtype = np.dtype([('LnPosterior', np.float64, shape), ('Chain[0]', np.float64, shape), ('Chain[1]', np.float64, shape), ('Chain[2]', np.float64, shape), ('Chain[3]', np.float64, shape), ('rootChain[0]', np.complex128, shape), ('rootChain[1]', np.complex128, shape), ('rootChain[2]', np.complex128, shape), ('rootChain[3]', np.complex128, shape)])
 
 # hdf5 reference special data type
 ref_dtype = h5py.special_dtype(ref=h5py.Reference)
@@ -70,11 +69,12 @@ def lsst_fit(lc, rd_cad, grp):
     Args:
         lc: Kali LC object, full mock LC.
         mjd_path(str): The path to sdss cadence source provided by C. MacLeod.
+        grp: HDF5 group storing the MCMC chains.
     """
     
     best_param = []  # store best-fit params
     ref_ls = []
-    task = kali.carma.CARMATask(1, 0, nsteps=nsteps, nwalkers=nwalkers, nthreads=1)
+    task = kali.carma.CARMATask(2, 1, nsteps=nsteps, nwalkers=nwalkers, nthreads=1)
     
     for cad_idx in rd_cad:
         
@@ -82,7 +82,7 @@ def lsst_fit(lc, rd_cad, grp):
         cad = maf['cad'][cad_idx]
         ra = maf['ra'][cad_idx]
         dec = maf['dec'][cad_idx]
-        
+                                
         # loop over required bands
         for band in bands:
 
@@ -92,12 +92,12 @@ def lsst_fit(lc, rd_cad, grp):
             task.fit(lc_down)
             
             # fitted params and chains to array and pass back
-            fit = list(task.bestTau)
+            fit = list(task.bestTheta)
             fit.append(band)
             fit.append(ra)
             fit.append(dec)
             best_param.append(fit)
-            mcmc_rec = np.rec.array([task.LnPosterior, task.Chain[0], task.Chain[1], task.rootChain[0], task.rootChain[1]], dtype=dtype)
+            mcmc_rec = np.rec.array([task.LnPosterior, task.Chain[0], task.Chain[1], task.Chain[2], task.Chain[3], task.rootChain[0], task.rootChain[1], task.rootChain[2], task.rootChain[3]], dtype=dtype)
 
             # create hdf5 dataset given id as combination of ra, dec and band
             dset = grp.create_dataset('{}_{}_{}'.format(ra, dec, band), dtype=dtype, data=mcmc_rec, shape=())
@@ -105,7 +105,7 @@ def lsst_fit(lc, rd_cad, grp):
             # create reference to this dataset and store in para_fit dataframe
             ref_ls.append(dset.ref)
 
-        df_p = pd.DataFrame(best_param, columns=['tau', 'sigma', 'band', 'ra', 'dec'])
+        df_p = pd.DataFrame(best_param, columns=['a1', 'a2', 'b0', 'b1', 'band', 'ra', 'dec'])
         df_p['ref2chain'] = ref_ls
 
     # flush data into file
@@ -120,10 +120,10 @@ if __name__ == '__main__':
     # loop over all sdss lc cadence
     for i in range(rank, len(rd_obj), size):
         j = rd_obj[i]
-        # print(rank, j, df_param.loc[j, 'lc_name'])
+        # print(rank, j, df_param.loc[j, 'fname'])
         
         # create hdf5 file and chain group
-        f = h5py.File(os.path.join(final_dir, rt_id.format(df_param.loc[j, 'tau'], df_param.loc[j, 'sigma'], j, run_postfix)), 'w')
+        f = h5py.File(os.path.join(final_dir, rt_id.format(df_param.loc[j, 'a1'], df_param.loc[j, 'b1']/df_param.loc[j, 'b0'], j, run_postfix)), 'w')
         grp = f.create_group('chain')
         # read lc 
         lc = extLC(os.path.join(obj_dir, df_param.loc[j, 'fname']+'.npz'))
@@ -135,10 +135,8 @@ if __name__ == '__main__':
             print('Failed at object {:d}'.format(j))
             continue
 
-        dff.insert(0, 'std_x', np.std(lc.x))
-        dff.insert(0, 'std_y', np.std(lc.y))
-        dff.insert(0, 'sigmaIn', df_param.loc[j, 'sigma'])
-        dff.insert(0, 'tauIn', df_param.loc[j, 'tau'])
+        # dff.insert(0, 'std_x', np.std(lc.x))
+        # dff.insert(0, 'std_y', np.std(lc.y))
         rec_dff = dff.to_records(index=False)
 
         # now redefine dtype for hdf5
