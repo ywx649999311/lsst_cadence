@@ -29,8 +29,10 @@ def lc2file(file_dir, lc, full=False, timescales=None):
     meta = [lc.pSim, lc.qSim, lc.fracNoiseToSignal, lc.fracIntrinsicVar]
     if 'mock_t' in lc.__dict__:
         np.savez(os.path.join(file_dir, lc.name), t=lc.t, x=lc.x, y=lc.y, yerr=lc.yerr, mask=lc.mask, meta=meta, mock_t=lc.mock_t)
+        return lc.name
     else:
         np.savez(os.path.join(file_dir, lc_id), t=lc.t, x=lc.x, y=lc.y, yerr=lc.yerr, mask=lc.mask, meta=meta)
+        return lc_id
 
 
 class lsstlc(kali.lc.lc):
