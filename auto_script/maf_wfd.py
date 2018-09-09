@@ -12,7 +12,7 @@ import sys
 
 # setup database connection
 outDir = 'maf_out'
-Baseline = '/home/data/Opsim DB/v4/baseline2018a.db'
+db_path = sys.argv[1]
 # specify output directory for metrics result
 resultsDb = db.ResultsDb(outDir=outDir)
 
@@ -85,13 +85,13 @@ def run_maf(dbFile, ra, dec):
 if __name__ == "__main__":
 
     # read coordinate from csv
-    loc_path = sys.argv[1]
+    loc_path = sys.argv[2]
     loc_df = pd.read_csv(loc_path)
     ra = list(loc_df['ra'])
     dec = list(loc_df['dec'])
 
     # run maf
-    result = run_maf(Baseline, ra, dec)
+    result = run_maf(db_path, ra, dec)
 
     # get data
     cad = result.bundleDict['cadence'].metricValues.data
@@ -102,8 +102,8 @@ if __name__ == "__main__":
 
     # save sep to input csv
     loc_df['sep'] = sep
-    loc_df.drop(cad_del)
+    loc_df = loc_df.drop(cad_del)
 
     # save cadence to npy file
     cad = np.delete(cad, cad_del)
-    np.savez(sys.argv[2], ra=loc_df['ra'], dec=loc_df['dec'], sep=loc_df['sep'], cad=cad)
+    np.savez(sys.argv[3], ra=loc_df['ra'], dec=loc_df['dec'], sep=loc_df['sep'], cad=cad)
