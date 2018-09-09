@@ -1,0 +1,2 @@
+sudo apt-get update
+sudo docker pull wyu16/kali:0908
