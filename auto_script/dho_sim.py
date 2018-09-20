@@ -20,14 +20,14 @@ def genLC(params, save_dir):
     Task = kali.carma.CARMATask(2, 1)
     noise = float(params['noise'])
     Theta = np.array([params['a1'], params['a2'], params['b0'], params['b1']])
-    print (Theta)
+    # print(Theta)
     # check whether the coefficients are valid before simulation
     if (Task.check(Theta) is False):
         return 0
 
     dt = 30.0/86400
     Task.set(dt, Theta)
-    lc = Task.simulate(duration=3650)
+    lc = Task.simulate(duration=3653)
     lc.fracNoiseToSignal = noise
     Task.observe(lc)
 

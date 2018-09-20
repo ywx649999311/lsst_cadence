@@ -32,7 +32,7 @@ def genLC(params, save_dir):
 
     dt = 30.0/86400
     Task.set(dt, Theta)
-    lc = Task.simulate(duration=3650)
+    lc = Task.simulate(duration=3653)
     lc.fracNoiseToSignal = noise
     Task.observe(lc)
 
