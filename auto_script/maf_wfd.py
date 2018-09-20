@@ -69,8 +69,8 @@ def run_maf(dbFile, ra, dec):
     metric_pass = metrics.simpleMetrics.PassMetric(cols=cols)
     # slicer for slicing pointing history
     slicer = slicers.UserPointsSlicer(ra, dec, lonCol='fieldRA', latCol='fieldDec', latLonDeg=degrees)
-    # sql constrains, here I put none
-    sql = 'proposalId = 3'
+    # sql constrains, 3 for baseline2018a, 1 for rolling m2045
+    sql = 'proposalId = 1'
     
     # bundles to combine metric, slicer and sql constrain together
     bundle = metricBundles.MetricBundle(metric, slicer, sql)
