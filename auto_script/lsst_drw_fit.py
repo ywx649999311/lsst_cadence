@@ -2,10 +2,10 @@
 from mpi4py import MPI
 import glob, sys, os, random, gc
 import pandas as pd
-import kali.carma
 import kali
+import kali.carma
 import h5py
-sys.path.insert(0, '/home/mount/lsst_cadence')
+sys.path.insert(0, '/home/repo/lsst_cadence')
 from lsstlc import *  # derived LSST lightcurve sub-class
 import time
 
@@ -28,28 +28,29 @@ run_postfix = 'e1260'
 df_param = pd.read_csv(input_param)  # load shortened object list
 rt_id = 'c10_fit_{:.2f}_{:.2f}_{:d}_{}.hdf5'  # specify the saved record file standard
 
+# Max/Min LC index and Cadence index
+obj_max = 12
+obj_min = 10
+cad_max = 1
+cad_min = 0
+
 if rank == 0 and not os.path.exists(final_dir):
     os.mkdir(final_dir)
     print("Creating diretory: {}".format(final_dir))
 
-if rank == 0:
-    # random index to select from all simulated objects
-    rd_obj = random.sample(range(len(df_param)), k=len(df_param))
-    # rd_obj.sort()
+# if rank == 0:
+#     # random index to select from all simulated objects
+#     rd_obj = random.sample(range(len(df_param)), k=len(df_param))
+#     # rd_obj.sort()
     
-    # random index to select from all cadence
-    rd_cad = random.sample(range(len(maf['cad'])), k=100)
-else:
-    rd_obj = None
-    rd_cad = None
+#     # random index to select from all cadence
+#     rd_cad = random.sample(range(len(maf['cad'])), k=100)
+# else:
+#     rd_obj = None
+#     rd_cad = None
 
-rd_obj = comm.bcast(rd_obj, root=0)
-rd_cad = comm.bcast(rd_cad, root=0)
-
-# print(rd_cad[0:5])
-# print(rd_obj[0:5])
-# end = time.time()
-# print('Total seconds spent {} for process {}'.format(end-start, rank))
+# rd_obj = comm.bcast(rd_obj, root=0)
+# rd_cad = comm.bcast(rd_cad, root=0)
 
 # carma task arguments
 nwalkers = 200
@@ -64,19 +65,19 @@ ref_dtype = h5py.special_dtype(ref=h5py.Reference)
 dt = h5py.special_dtype(vlen=str)
 
 
-def lsst_fit(lc, rd_cad, grp):
+def lsst_fit(lc, grp):
     """Take full mock LC and SDSS cadence to find best_fit params.
 
     Args:
         lc: Kali LC object, full mock LC.
-        mjd_path(str): The path to sdss cadence source provided by C. MacLeod.
+        grp: HDF5 group storing the MCMC chains.
     """
     
     best_param = []  # store best-fit params
     ref_ls = []
     task = kali.carma.CARMATask(1, 0, nsteps=nsteps, nwalkers=nwalkers, nthreads=1)
     
-    for cad_idx in rd_cad:
+    for cad_idx in range(cad_min, cad_max):
         
         # for new maf output
         cad = maf['cad'][cad_idx]
@@ -118,27 +119,26 @@ def lsst_fit(lc, rd_cad, grp):
 if __name__ == '__main__':
     
     # loop over all sdss lc cadence
-    for i in range(rank, len(rd_obj), size):
-        j = rd_obj[i]
-        # print(rank, j, df_param.loc[j, 'lc_name'])
+    for i in range(rank+obj_min, obj_max, size):
+        # print(rank+obj_min, i, df_param.loc[i, 'fname'])
         
         # create hdf5 file and chain group
-        f = h5py.File(os.path.join(final_dir, rt_id.format(df_param.loc[j, 'tau_rest'], df_param.loc[j, 'sigma'], j, run_postfix)), 'w')
+        f = h5py.File(os.path.join(final_dir, rt_id.format(df_param.loc[i, 'tau_rest'], df_param.loc[i, 'sigma'], i, run_postfix)), 'w')
         grp = f.create_group('chain')
         # read lc 
-        lc = extLC(os.path.join(obj_dir, df_param.loc[j, 'fname']+'.npz'))
+        lc = extLC(os.path.join(obj_dir, df_param.loc[i, 'fname']+'.npz'))
 
         try:
-            dff = lsst_fit(lc, rd_cad, grp)
+            dff = lsst_fit(lc, grp)
         except Exception as exter:
             print(exter)
-            print('Failed at object {:d}'.format(j))
+            print('Failed at object {:d}'.format(i))
             continue
 
         dff.insert(0, 'std_x', np.std(lc.x))
         dff.insert(0, 'std_y', np.std(lc.y))
-        dff.insert(0, 'sigmaIn', df_param.loc[j, 'sigma'])
-        dff.insert(0, 'tauIn', df_param.loc[j, 'tau_rest'])
+        dff.insert(0, 'sigmaIn', df_param.loc[i, 'sigma'])
+        dff.insert(0, 'tauIn', df_param.loc[i, 'tau_rest'])
         rec_dff = dff.to_records(index=False)
 
         # now redefine dtype for hdf5
