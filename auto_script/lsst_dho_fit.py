@@ -38,6 +38,8 @@ if rank == 0 and not os.path.exists(final_dir):
     os.mkdir(final_dir)
     print("Creating diretory: {}".format(final_dir))
 
+ok = comm.bcast(True, root=0)
+print (ok)
 # if rank == 0:
 #     # random index to select from all simulated objects
 #     rd_obj = random.sample(range(len(df_param)), k=1)

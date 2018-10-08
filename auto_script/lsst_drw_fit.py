@@ -24,20 +24,22 @@ final_dir = sys.argv[4]  # The directory to save all output, one file per object
 
 # load maf output
 maf = np.load(lsst_maf)
-run_postfix = 'e1260'
+run_postfix = 'm2045'
 df_param = pd.read_csv(input_param)  # load shortened object list
 rt_id = 'c10_fit_{:.2f}_{:.2f}_{:d}_{}.hdf5'  # specify the saved record file standard
 
 # Max/Min LC index and Cadence index
-obj_max = 12
-obj_min = 10
-cad_max = 1
+obj_max = len(df_param)
+obj_min = 44
+cad_max = len(maf['cad'])
 cad_min = 0
 
 if rank == 0 and not os.path.exists(final_dir):
     os.mkdir(final_dir)
     print("Creating diretory: {}".format(final_dir))
 
+ok = comm.bcast(True, root=0)
+print (ok)
 # if rank == 0:
 #     # random index to select from all simulated objects
 #     rd_obj = random.sample(range(len(df_param)), k=len(df_param))
