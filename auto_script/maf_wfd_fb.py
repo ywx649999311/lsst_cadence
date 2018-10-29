@@ -12,7 +12,7 @@ import sys
 
 # setup database connection
 outDir = 'maf_out'
-Baseline = '/home/data/Opsim DB/v4/baseline2018a.db'
+db_path = sys.argv[1]
 # specify output directory for metrics result
 resultsDb = db.ResultsDb(outDir=outDir)
 
@@ -43,8 +43,11 @@ class expDateStacker(stackers.BaseStacker):
         return simData
 
 
-def run_maf(dbFile):
-    """Retrive min inter_night gap, and observation history with the input of database file name and arrays of RA and DEC."""
+def run_maf(dbFile, ra, dec):
+    """Retrive min inter_night gap, and observation history with the input of database file name and arrays of RA and DEC.
+
+    Note: the observing cadence returned are not ordered by date!! 
+    """
 
     # establish connection to sqllite database file.
     opsimdb = db.OpsimDatabase(dbFile)
@@ -53,34 +56,57 @@ def run_maf(dbFile):
     if opsimdb.opsimVersion == "V3":
         # For v3 databases:
         mjdcol = 'expMJD'
-        cols = ['filter', 'fiveSigmaDepth', mjdcol, 'expDate', 'fieldID']
+        degrees = False
+        cols = ['filter', 'fiveSigmaDepth', mjdcol, 'expDate']
         stackerList = []
     else:
         # For v4 and alternate scheduler databases.
         mjdcol = 'observationStartMJD'
-        cols = ['filter', 'fiveSigmaDepth', mjdcol, 'fieldId']
+        degrees = True
+        cols = ['filter', 'fiveSigmaDepth', mjdcol]
         stackerList = [expDateStacker()]
     
+    # IntraNightGapsMetric returns the gap (in days) between observations within the same night custom reduceFunc to find min gaps 
+    metric = metrics.cadenceMetrics.IntraNightGapsMetric(reduceFunc=np.amin, mjdCol=mjdcol)
     # PassMetric just pass all values
     metric_pass = metrics.simpleMetrics.PassMetric(cols=cols)
-    slicer = slicers.UniSlicer()
-    # sql constrains, here I put none
-    sql = 'fieldId IN (744, 1427, 2412, 2786)'
+    # slicer for slicing pointing history
+    slicer = slicers.UserPointsSlicer(ra, dec, lonCol='fieldRA', latCol='fieldDec', latLonDeg=degrees)
+    # sql constrains, 3 for baseline2018a, 1 for rolling m2045
+    sql = ''
     
     # bundles to combine metric, slicer and sql constrain together
-    ddf = metricBundles.MetricBundle(metric_pass, slicer, sql, stackerList=stackerList)
+    bundle = metricBundles.MetricBundle(metric, slicer, sql)
+    date_bundle = metricBundles.MetricBundle(metric_pass, slicer, sql, stackerList=stackerList)
     
     # create metric bundle group and returns
-    bg = metricBundles.MetricBundleGroup({'ddf': ddf}, opsimdb, outDir=outDir, resultsDb=resultsDb)
+    bg = metricBundles.MetricBundleGroup({'sep': bundle, 'cadence': date_bundle}, opsimdb, outDir=outDir, resultsDb=resultsDb)
     bg.runAll()
     opsimdb.close()
     return bg
 
 if __name__ == "__main__":
 
-    # run maf
-    result = run_maf(Baseline)
+    # read coordinate from csv
+    loc_path = sys.argv[2]
+    loc_df = pd.read_csv(loc_path)
+    ra = list(loc_df['ra'])
+    dec = list(loc_df['dec'])
 
-    # get data and save to file
-    cad = result.bundleDict['ddf'].metricValues.data[0]
-    np.savez(sys.argv[1], Elias=cad[cad['fieldID'] == 744], Chandra=cad[cad['fieldID'] == 1427], XMM=cad[cad['fieldID'] == 2412], Cosmos=cad[cad['fieldID'] == 2786])
+    # run maf
+    result = run_maf(db_path, ra, dec)
+
+    # get data
+    cad = result.bundleDict['cadence'].metricValues.data
+    sep = result.bundleDict['sep'].metricValues.data
+
+    # determine location not in WFD
+    cad_del = [i for i in range(len(cad)) if (len(cad[i]) > 2000 or len(cad[i]) < 400)]
+
+    # save sep to input csv
+    loc_df['sep'] = sep
+    loc_df = loc_df.drop(cad_del)
+
+    # save cadence to npy file
+    cad = np.delete(cad, cad_del)
+    np.savez(sys.argv[3], ra=loc_df['ra'], dec=loc_df['dec'], sep=loc_df['sep'], cad=cad)
