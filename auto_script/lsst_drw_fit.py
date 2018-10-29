@@ -1,4 +1,12 @@
-"""LSST DRW fit using MPI/HDF5."""
+"""LSST DRW fit using MPI/HDF5.
+
+!!Need to config a few settings:!!
+1. Path of lsstlc.py script, set in sys.path.insert()
+2. The postfix of each file, based on the ospim used
+3. The range of objects and ra,dec to run, set using obj_max/obj_min and
+   cad_max/cad_min
+
+"""
 from mpi4py import MPI
 import glob, sys, os, random, gc
 import pandas as pd
