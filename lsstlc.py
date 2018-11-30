@@ -61,7 +61,7 @@ class lsstlc(kali.lc.lc):
         elif min_sep is None:
             raise Exception('Minimum seperation is either fixed at 30 sec or must be provided (in hours)!')
         else:    
-            self.min_sep = np.floor(min_sep*3600-1)  # hours to seconds (floor to avoid dim error)
+            self.min_sep = min_sep*3600  # hours to seconds (floor to avoid dim error)
 
         self.obsTimes = obsTimes
         self.mockLC = mockLC
